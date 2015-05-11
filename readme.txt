@@ -1,5 +1,5 @@
 === Email Verification for WooCommerce  ===
-Contributors: subhansanjaya, Tonny Keuken
+Contributors: subhansanjaya, ak1897
 Donate link: http://www.greenpeace.org/
 Tags: woocommerce account verification, email validation, woocommerce email verification, account activation, woocommerce, email, checkout, woocommerce register, email verification, single site
 Requires at least: 4.0
