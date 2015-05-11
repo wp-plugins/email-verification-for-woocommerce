@@ -1,0 +1,86 @@
+# Copyright (C) 2015 Email Verification for Woocommerce
+# This file is distributed under the same license as the Email Verification for Woocommerce package.
+msgid ""
+msgstr ""
+"Project-Id-Version: Email Verification for Woocommerce 3.0.0\n"
+"Report-Msgid-Bugs-To: http://wordpress.org/support/plugin/email-verification-"
+"for-woocommerce\n"
+"POT-Creation-Date: 2015-05-11 07:29:47+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2015-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+
+#: includes/class-email-verification-for-woocommerce.php:47
+msgid ""
+"You will need an account with a validated emailaddress before you can "
+"proceed the checkout. <br /> Please login or create an account to checkout."
+msgstr ""
+
+#: includes/class-email-verification-for-woocommerce.php:78
+msgid ""
+"Account activation successful. Please, click <a href=\"%s?page_id=%s\">here</"
+"a> to checkout."
+msgstr ""
+
+#: includes/class-email-verification-for-woocommerce.php:160
+msgid ""
+"A confirmation link has been sent to your email address. Please follow the "
+"instructions in the email to activate your account."
+msgstr ""
+
+#: includes/class-email-verification-for-woocommerce.php:178
+msgid "Activate your %s account"
+msgstr ""
+
+#: includes/class-email-verification-for-woocommerce.php:239
+msgid "Account validation"
+msgstr ""
+
+#: includes/class-email-verification-for-woocommerce.php:256
+msgid ""
+"This plugin requires PHP Version 5.4 or newer.  You are using version %s "
+"sorry about that."
+msgstr ""
+
+#: includes/class-email-verification-for-woocommerce.php:265
+msgid ""
+"This plugin requires WordPress Version 4.0 or newer.  You are using version "
+"%s, please upgrade."
+msgstr ""
+
+#: includes/class-email-verification-for-woocommerce.php:274
+msgid ""
+"This plugin requires WooCommerce Version 2.3 or newer.  You are using "
+"version %s, please upgrade."
+msgstr ""
+
+#: includes/class-email-verification-for-woocommerce.php:289
+msgid ""
+"The Email Verification for Woocommerce plugin is now <strong>deactivated</"
+"strong>.<br /><br />Some database tables and settings are NOT removed yet, "
+"those will be removed on uninstalling the plugin."
+msgstr ""
+
+#. Plugin Name of the plugin/theme
+msgid "Email Verification for Woocommerce"
+msgstr ""
+
+#. #-#-#-#-#  plugin.pot (Email Verification for Woocommerce 3.0.0)  #-#-#-#-#
+#. Plugin URI of the plugin/theme
+#. #-#-#-#-#  plugin.pot (Email Verification for Woocommerce 3.0.0)  #-#-#-#-#
+#. Author URI of the plugin/theme
+msgid "http://tidl.nl/"
+msgstr ""
+
+#. Description of the plugin/theme
+msgid ""
+"Sends a verification link to a customer' e-mailaddress for activating their "
+"account after registration, this hooks in before proceeding to the checkout."
+msgstr ""
+
+#. Author of the plugin/theme
+msgid "Tonny Keuken"
+msgstr ""
