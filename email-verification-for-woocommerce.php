@@ -1,6 +1,6 @@
 <?php
 /**
- * @version           3.0.0
+ * @version           3.1.0
  * @package           email verification for woocommerce
  * @author            Tonny Keuken (tonny.keuken@tidl.nl)
  *
@@ -8,7 +8,7 @@
  * Plugin Name:       Email Verification for Woocommerce
  * Plugin URI:        http://tidl.nl/
  * Description:       Sends a verification link to a customer' e-mailaddress for activating their account after registration, this hooks in before proceeding to the checkout.
- * Version:           3.0.0
+ * Version:           3.1.0
  * Author:            Tonny Keuken
  * Author URI:        http://tidl.nl/
  * License:           GPL-2.0+

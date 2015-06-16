@@ -1,10 +1,10 @@
 === Email Verification for WooCommerce  ===
-Contributors: subhansanjaya, ak1897
+Contributors: subhansanjaya, Tonny Keuken
 Donate link: http://www.greenpeace.org/
 Tags: woocommerce account verification, email validation, woocommerce email verification, account activation, woocommerce, email, checkout, woocommerce register, email verification, single site
 Requires at least: 4.0
-Tested up to: 4.2
-Stable tag: 3.0.0
+Tested up to: 4.2.2
+Stable tag: 3.1.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -26,6 +26,8 @@ The Email Verification for WooCommerce plugin sends a verification link to a cus
 **Translations:**
 
 - Dutch [nl_NL] by [Tonny Keuken] (tonny.keuken@tidl.nl)
+- English [en_EN] by [Tonny Keuken] (tonny.keuken@tidl.nl) (template)
+- email-verification-for-woocommerce.pot for your own translations
 
 
 
@@ -40,8 +42,20 @@ Download the zip file and extract it. Upload "Email Verification for WooCommerce
 A new page ** "Account validation" will be created for you with a shortcode [email-verification-for-woocommerce] in it.
 ** depending on the translation-files
 
+3. You can change the 'slug' or the post_name to your need under Pages on your Dashboard.
+   This will result that the url for activation also has the page_name you widh to use...
 
 == Changelog ==
+
+**Version 3.1.0**
+
+- Changed the methode dat transports userdata from and to the database-table, now it uses the get_userdata.
+- The message that an email has been send, is working now.
+- A message on succesful activation, is working now as it should be.
+- The link in the email, send to the customer has a nice url for verification, now, and its translateble if you like.
+- Added a .pot file for translations, included an empty english translation also.
+- Updated the translation files.
+
 
 **Version 3.0.0**
 

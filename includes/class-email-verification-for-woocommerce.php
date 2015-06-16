@@ -1,6 +1,6 @@
 <?php
 /**
- * @version           3.0.0
+ * @version           3.1.0
  * @package           email verification for woocommerce
  * @author            Tonny Keuken (tonny.keuken@tidl.nl)
  */
@@ -12,12 +12,13 @@ class TK_EVF_WC{
     public $customer_id;
     
     public function __construct(){
-        add_shortcode( 'email-verification-for-woocommerce', array( $this, 'add_shortcode' ) );
+        add_shortcode( 'email-verification-for-woocommerce', array( $this, 'add_shortcode' ) );        
         add_action( 'user_register', array( $this, 'create_temp_user' ) );
         add_action( 'woocommerce_checkout_init', array( $this, 'before_checkout_process' ) );
         add_action( 'init', array( $this, 'load_textdomain' ) );        
         // add scheduler action
         add_action('purge_unvalidated_accounts_cron', array( $this, 'purge_unvalidated_accounts' ) );
+        add_action( 'woocommerce_before_my_account', array( $this, 'add_activation_message_to_my_account' ) );
         add_filter( 'woocommerce_my_account_message', array( $this, 'add_text_to_my_account' ) );        
     }
 
@@ -43,10 +44,26 @@ class TK_EVF_WC{
         // check if user is logged in and if guest checkout is enabled
         // this only works if guest checkout is disabled,
         $guest_checkout = get_option( 'woocommerce_enable_guest_checkout' );
-        if ( ! is_user_logged_in() && $guest_checkout === 'no' ) {            
-            wc_add_notice( __( 'You will need an account with a validated emailaddress before you can proceed the checkout. <br /> Please login or create an account to checkout.', 'email-verification-for-woocommerce' ) );
-        }         
+        //do messages        
+        if ( isset( $_SESSION[ 'email_send_for_activation' ] ) && $_SESSION[ 'email_send_for_activation' ] === 'done' ) {                    
+            wc_add_notice( __( 'A confirmation link has been sent to your email address. Please follow the instructions in the email to activate your account.', 'email-verification-for-woocommerce', 'success' ) );                
+            unset( $_SESSION['email_send_for_activation'] );            
+        } else if ( isset( $_SESSION[ 'email_send_for_activation' ] ) && $_SESSION[ 'email_send_for_activation' ] === 'verified' ) {                                       
+            $this->add_activation_message_to_my_account();
+        } else if ( ! is_user_logged_in() && $guest_checkout === 'no' ) {            
+            wc_add_notice( __( 'You will need an account with a validated emailaddress before you can proceed the checkout. <br /> Please login or create an account to checkout.', 'email-verification-for-woocommerce', 'notice' ) );
+        } 
         return;                            
+    }
+    
+    public function add_activation_message_to_my_account(){                                                                         
+        if ( isset( $_SESSION[ 'email_send_for_activation' ] ) && $_SESSION[ 'email_send_for_activation' ] === 'verified' ) {                                       
+            $page_id = wc_get_page_id( 'myaccount' );       
+            wc_add_notice(  __( 'Account activation successful.', 'email-verification-for-woocommerce'), 'success' );
+            unset( $_SESSION['email_send_for_activation'] ); //break loop
+            wp_redirect( home_url().'?page_id='.$page_id ); 
+            exit;
+        }        
     }
 
     public function load_textdomain(){
@@ -74,10 +91,17 @@ class TK_EVF_WC{
                 $create_user = $this->create_new_customer($email, $username, $password);
                 if ( is_int( $create_user ) ) {
                     $this->remove_temp_user( $data['user_id'] );
-                    $page_id = wc_get_page_id( 'checkout' );
-                    echo sprintf( __( 'Account activation successful. Please, click <a href="%s?page_id=%s">here</a> to checkout.', 'email-verification-for-woocommerce' ), home_url(), $page_id );                                        
-                    wc_set_customer_auth_cookie( $create_user );
-                    wp_redirect( home_url().'?page_id='.$page_id ); exit;
+                    if ( WC()->cart->get_cart_contents_count() > 0 ) {
+                        $page_id = wc_get_page_id( 'checkout' );
+                        wc_set_customer_auth_cookie( $create_user );
+                        wc_add_notice( __( 'Account activation successful. You can checkout now.', 'email-verification-for-woocommerce' ), 'success' );
+                        wp_redirect( home_url().'?page_id='.$page_id ); exit;
+                    } else {
+                        $page_id = wc_get_page_id( 'myaccount' );                        
+                        wc_set_customer_auth_cookie( $create_user );
+                        $_SESSION[ 'email_send_for_activation' ] = 'verified';                        
+                        wp_redirect( home_url().'?page_id='.$page_id ); exit;
+                    }
                 } else {
                     wp_redirect( home_url() ); exit;
                 }		
@@ -128,24 +152,16 @@ class TK_EVF_WC{
     }
 
     public function create_temp_user( $user_id ){
-	if ( !current_user_can( 'manage_options' ) ) {
+	if ( !current_user_can( 'manage_options' ) ) {            
             if ( !$user_id ) { return; }
             // avoiding  a 'call to undefined function' error while using wp_delete_user
-            require_once( ABSPATH . 'wp-admin/includes/user.php' );
-            global $woocommerce;
-            global $wpdb;
-	
-            $sSql = $wpdb->prepare( "SELECT * FROM `{$wpdb->base_prefix}users` WHERE `ID` = %d LIMIT 1", array( $user_id ) );			
-            $data = $wpdb->get_row($sSql, ARRAY_A);
-            $form = array(
-                'user_email' => $data['user_email'],
-                'user_login' => $data['user_login'],
-                'user_pass' => $data['user_pass']
-                );
-
-            $to = $form['user_email'];
-            $un = $form['user_login'];
-            $pw = $form['user_pass'];
+            require_once( ABSPATH . 'wp-admin/includes/user.php' );            
+            global $wpdb;            
+            $data = get_userdata($user_id);            
+            
+            $to = $data->user_email;
+            $un = $data->user_login;
+            $pw = $data->user_pass;
             $dt = current_time( 'mysql' );
             
             $hash = md5($to.$un);
@@ -155,9 +171,7 @@ class TK_EVF_WC{
             $wpdb->query($sql);
             
             //removing user from wordpress
-            wp_delete_user( $user_id );            
-			
-            wc_add_notice( __( 'A confirmation link has been sent to your email address. Please follow the instructions in the email to activate your account.', 'email-verification-for-woocommerce' ) );
+            wp_delete_user( $user_id );                            
         }
     }
     
@@ -169,12 +183,13 @@ class TK_EVF_WC{
                     LIMIT 1", $user_id);
         $wpdb->query($sSql);        
     }
-
+    
     /* Verification Email */
     public function send_verification($to, $un, $hash){        
-        $page_id  = get_option( 'woocommerce_account_validation_page_id' );                
-        $blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
-        $headers = "Content-Type: text/htmlrn";
+        $page_id  = get_option( 'woocommerce_account_validation_page_id' );    
+        $activation_post = get_post( $page_id );
+        $activation_url = $activation_post->post_name;
+        $blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);        
         $subject = sprintf( __( 'Activate your %s account', 'email-verification-for-woocommerce' ), $blogname );        
         $message = sprintf( __('Hello %s,<br/><br/>'
                 . 'To activate your account and access the feature you were trying to view, '
@@ -183,16 +198,17 @@ class TK_EVF_WC{
                 . 'Thank you for registering with us.'
                 . '<br/><br/>Yours sincerely,<br/>%s', 'email-verification-for-woocommerce' ), 
                 $un, 
-                home_url('/').'?page_id=' . $page_id .'&passkey='.$hash, 
-                home_url('/').'?page_id=' . $page_id .'&passkey='.$hash,
+                home_url('/').$activation_url . '?passkey='.$hash, 
+                home_url('/').$activation_url . '?passkey='.$hash, 
                 $blogname );        
-        $attachments = null;
-        woocommerce_mail($to, $subject, $message, $headers, $attachments);
+        wc_mail( $to, $subject, $message );                
+        $_SESSION['email_send_for_activation'] = 'done';      
         return;
+        
     }
         
     public static function activate(){
-        global $wp_version, $woocommerce;            
+        global $wp_version;
         // check the version of PHP running on the server                        
         if (version_compare( phpversion(), '5.4.0' ) < 0) {		            
             deactivate_plugins( plugin_basename( __FILE__ ) );
@@ -204,12 +220,12 @@ class TK_EVF_WC{
             add_action( 'admin_notices', array( 'TK_EVF_WC', 'add_install_wp_error' ) );            
         }
         // check the version of WP running                    
-        if ( ! is_object( $woocommerce ) || version_compare( $woocommerce->version, '2.3', '<' ) ) {            
+        if ( ! is_object( WC() ) || version_compare( WC()->version, '2.3', '<' ) ) {            
             deactivate_plugins( plugin_basename( __FILE__ ) );
             add_action( 'admin_notices', array( 'TK_EVF_WC', 'add_install_wc_error' ) );            
         }
             
-        global $wpdb, $woocommerce;
+        global $wpdb;
         // set DB table
         if($wpdb->get_var("SHOW TABLES LIKE '".  self::get_table_name(). "'") != self::get_table_name() ){
             $sSql = "CREATE TABLE IF NOT EXISTS `". self::get_table_name(). "` (";
@@ -235,8 +251,8 @@ class TK_EVF_WC{
                 'ping_status'    => 'closed',
                 'post_author'    => 1,
                 'post_content'   => '[email-verification-for-woocommerce]',
-                'post_name'      => 'account_validation',   
-                'post_title'     => __( 'Account validation'),
+                'post_name'      => __( 'account-validation', 'email-verification-for-woocommerce' ),
+                'post_title'     => __( 'Account validation', 'email-verification-for-woocommerce' ),
                 'post_type'      => 'page',
                 'post_status'    => 'publish',
                 'post_category'  => array( 1 )
@@ -268,10 +284,10 @@ class TK_EVF_WC{
     }
     
     public static function add_install_wc_error() {
-        global $pagenow, $woocommerce; 
+        global $pagenow; 
         if ( $pagenow == 'plugins.php' ) {
             $class = "error";
-            $message = sprintf( __( 'This plugin requires WooCommerce Version 2.3 or newer.  You are using version %s, please upgrade.', 'email-verification-for-woocommerce' ), $woocommerce->version );            
+            $message = sprintf( __( 'This plugin requires WooCommerce Version 2.3 or newer.  You are using version %s, please upgrade.', 'email-verification-for-woocommerce' ), WC()->version );            
             echo '<div class="'.$class.'"> <p> '.$message.' </p></div>';
         }
     }
