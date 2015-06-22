@@ -1,6 +1,6 @@
 <?php
 /**
- * @version           3.1.0
+ * @version           3.1.1
  * @package           email verification for woocommerce
  * @author            Tonny Keuken (tonny.keuken@tidl.nl)
  */
@@ -27,11 +27,11 @@ class TK_EVF_WC{
         return $wpdb->prefix . self::$temp_user_table;            
     }
 
-    public function before_checkout_process(){
+    public function before_checkout_process(){        
         // check if user is logged in and if guest checkout is enabled
         // this only works if guest checkout is disabled,
         $guest_checkout = get_option( 'woocommerce_enable_guest_checkout' );
-        if ( ! is_user_logged_in() && $guest_checkout === 'no' ) {            
+        if ( ! is_user_logged_in() && $guest_checkout === 'no' ) {
             $page_id = wc_get_page_id( 'myaccount' );
             wp_redirect( home_url().'?page_id='.$page_id ); 
             exit;
@@ -130,7 +130,7 @@ class TK_EVF_WC{
 	if( is_null( username_exists( $username ) ) ) {
             $reg_date = date("Y-m-d H:i:s");
             $sql = $wpdb->prepare(
-                "INSERT INTO `{$wpdb->base_prefix}users`
+                "INSERT INTO `{$wpdb->users}`
                 (`user_login`, `user_pass`, `user_email`, `user_nicename`, `display_name`, `user_registered`)
                 VALUES(%s, %s, %s,%s, %s, %s)",
                 array($username,$password,$email,$username, $username,$reg_date)
@@ -185,7 +185,8 @@ class TK_EVF_WC{
     }
     
     /* Verification Email */
-    public function send_verification($to, $un, $hash){        
+    public function send_verification($to, $un, $hash){    
+        if (session_status() === PHP_SESSION_NONE){session_start();}
         $page_id  = get_option( 'woocommerce_account_validation_page_id' );    
         $activation_post = get_post( $page_id );
         $activation_url = $activation_post->post_name;
@@ -204,7 +205,6 @@ class TK_EVF_WC{
         wc_mail( $to, $subject, $message );                
         $_SESSION['email_send_for_activation'] = 'done';      
         return;
-        
     }
         
     public static function activate(){

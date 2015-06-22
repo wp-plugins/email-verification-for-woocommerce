@@ -4,7 +4,7 @@ Donate link: http://www.greenpeace.org/
 Tags: woocommerce account verification, email validation, woocommerce email verification, account activation, woocommerce, email, checkout, woocommerce register, email verification, single site
 Requires at least: 4.0
 Tested up to: 4.2.2
-Stable tag: 3.1.0
+Stable tag: 3.1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,6 +47,9 @@ A new page ** "Account validation" will be created for you with a shortcode [ema
 
 == Changelog ==
 
+**Version 3.1.1**
+- Fixed a bug that caused that a verification failed and the user was not created.
+
 **Version 3.1.0**
 
 - Changed the methode dat transports userdata from and to the database-table, now it uses the get_userdata.
@@ -64,7 +67,15 @@ A new page ** "Account validation" will be created for you with a shortcode [ema
 
 == Frequently Asked Questions == 
 
-1. None, yet.
+1.  Question: Is there a way to do not send the email verification link if a user register with a social account. I only want to use the verification link for users that don't register with social login.
+    Answer: Yes there is, create or modify the woocommerce template "my account page". In Woocommerce there is a template available for this page, and also for the register page.
+    I suggest you create your own template for the login/registration page and add in there the option that customers can also register or login with their social accounts.
+    Check out this guide: http://docs.woothemes.com/document/template-structure/
+    So customers, when register by email verification or by your social login (plugin) and that are logged in can do their checkouts.
+    
+    The plugin only checks is a user is logged in and Woocommerce do not accept guest checkouts.
+
+
 
 
 == Upgrade Notice ==

@@ -1,6 +1,6 @@
 <?php
 /**
- * @version           3.1.0
+ * @version           3.1.1
  * @package           email verification for woocommerce
  * @author            Tonny Keuken (tonny.keuken@tidl.nl)
  *
