@@ -95,5 +95,6 @@ A new page ** "Account validation" will be created for you with a shortcode [ema
 
 - License: GPLv2 or later
 - License URI: http://www.gnu.org/licenses/gpl-2.0.html
-- This code is a fork of: https://plugins.svn.wordpress.org/woocommerce-email-verification/
+- This code is a fork of: https://plugins.svn.wordpress.org/woocommerce-email-verification/ 
+  https://github.com/tidl/woocommerce-email-verification
 - The original code is written by https://profiles.wordpress.org/subhansanjaya/
