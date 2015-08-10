@@ -3,8 +3,8 @@ Contributors: subhansanjaya, Tonny Keuken
 Donate link: http://www.greenpeace.org/
 Tags: woocommerce account verification, email validation, woocommerce email verification, account activation, woocommerce, email, checkout, woocommerce register, email verification, single site
 Requires at least: 4.0
-Tested up to: 4.2.2
-Stable tag: 3.1.1
+Tested up to: 4.2.4
+Stable tag: 3.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -47,6 +47,9 @@ A new page ** "Account validation" will be created for you with a shortcode [ema
 
 == Changelog ==
 
+**Version 3.2**
+- Vulnerability issues are fixed, the value of the passkey is properly sanitized now.
+
 **Version 3.1.1**
 - Fixed a bug that caused that a verification failed and the user was not created.
 
@@ -62,7 +65,7 @@ A new page ** "Account validation" will be created for you with a shortcode [ema
 
 **Version 3.0.0**
 
-- Revamped release of the free version "WooCommerce Email Verification " created by subhansanjaya
+- Revamped release of the free version "WooCommerce Email Verification" created by subhansanjaya
 
 
 == Frequently Asked Questions == 
@@ -86,3 +89,11 @@ A new page ** "Account validation" will be created for you with a shortcode [ema
 == Screenshots ==
 
 1. None, yet.
+
+
+== Copyright and Credits ==
+
+- License: GPLv2 or later
+- License URI: http://www.gnu.org/licenses/gpl-2.0.html
+- This code is a fork of: https://plugins.svn.wordpress.org/woocommerce-email-verification/
+- The original code is written by https://profiles.wordpress.org/subhansanjaya/
