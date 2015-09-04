@@ -114,7 +114,7 @@ class TK_EVF_WC {
 
         public function create_new_customer( $email, $username, $password, $date_registered ) {                
                 $check_pw_setting = get_option( 'woocommerce_registration_generate_password' );                
-                if ( is_null( username_exists( $username ) ) ) {
+                if ( ! username_exists( $username ) ) {
                         if ( $check_pw_setting === 'yes' ) {
                                 $password_generated = true;
                                 $password = wp_generate_password();
