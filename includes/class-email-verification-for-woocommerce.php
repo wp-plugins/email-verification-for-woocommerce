@@ -19,6 +19,7 @@ class TK_EVF_WC {
                 // add scheduler action
                 add_action( 'purge_unvalidated_accounts_cron', array( $this, 'purge_unvalidated_accounts' ) );
                 add_filter( 'woocommerce_my_account_message', array( $this, 'add_text_to_my_account' ) );
+                add_action( 'woocommerce_checkout_order_processed', array($this, 'remove_temp_user') );
         }
 
         public static function get_table_name() {
@@ -60,7 +61,7 @@ class TK_EVF_WC {
         
         public function maybe_process_shortcode($query) {
 	        
-	        if( $query->query_vars['pagename'] == 'account-validation' ) {
+	        if( ! empty( $query->query_vars['pagename'] ) && $query->query_vars['pagename'] == 'account-validation' ) {
 		        
 		        $this->add_shortcode();
 		        
@@ -86,7 +87,6 @@ class TK_EVF_WC {
                                 if ( is_int( $create_user ) ) {
 	                                	wc_set_customer_auth_cookie( $create_user );
 	                                	$cart_session = get_transient( 'wc_temp_user_' . $result[ 'user_id' ] . '_persistent_cart' );  	
-                                        $this->remove_temp_user( $result[ 'user_id' ] );
                                         if ( $cart_session ) {
 	                                        	update_user_meta( $create_user, '_woocommerce_persistent_cart', $cart_session );
                                                 $page_id = wc_get_page_id( 'checkout' );
@@ -113,30 +113,30 @@ class TK_EVF_WC {
         }
 
         public function create_new_customer( $email, $username, $password, $date_registered, $role = 'customer' ) {                
-                $check_pw_setting = get_option( 'woocommerce_registration_generate_password' );                
-                if ( ! username_exists( $username ) ) {
-                        if ( $check_pw_setting === 'yes' ) {
-                                $password_generated = true;
-                                $password = wp_generate_password();
-                        } else {
-                                $password_generated = false;
-                        }
-                        
-                        $new_customer_data = apply_filters( 'woocommerce_new_customer_data', array(
-                                'user_login'            => $username,
-                                'user_pass'             => $password,
-                                'user_email'            => $email,
-                                'role'                  => $role,
-                                'user_registered'       => $date_registered
-                                ) );
-                        
-                        $uid = wp_insert_user( $new_customer_data );
-                        
-                        do_action( 'woocommerce_created_customer', $uid, $new_customer_data, $password_generated );                        
-                        return $uid;
-                } else {
-                        return false;
-                }
+            $check_pw_setting = get_option( 'woocommerce_registration_generate_password' );    
+            $uid = username_exists( $username );            
+            if ( ! $uid ) {
+                    if ( $check_pw_setting === 'yes' ) {
+                            $password_generated = true;
+                            $password = wp_generate_password();
+                    } else {
+                            $password_generated = false;
+                    }
+                    
+                    $new_customer_data = apply_filters( 'woocommerce_new_customer_data', array(
+                            'user_login'            => $username,
+                            'user_pass'             => $password,
+                            'user_email'            => $email,
+                            'role'                  => $role,
+                            'user_registered'       => $date_registered
+                            ) );
+                    
+                    $uid = wp_insert_user( $new_customer_data );
+                    
+                    do_action( 'woocommerce_created_customer', $uid, $new_customer_data, $password_generated );                        
+                    return $uid;
+            }
+            return $uid;
         }
 
         public function set_customer_id( $user_id ) {
@@ -182,8 +182,10 @@ class TK_EVF_WC {
                 return hash( 'sha256', $to . $generated . $un );
         }
 
-        public function remove_temp_user( $user_id ) {
+        public function remove_temp_user( $order_id ) {
                 global $wpdb;
+                $order = wc_get_order( $order_id );
+                $user_id = $order->get_user_id();
                 $table = self::get_table_name();
                 $sSql  = $wpdb->prepare( "DELETE FROM `{$table}`
                     WHERE `user_id` = %d
