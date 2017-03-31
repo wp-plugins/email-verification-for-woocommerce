@@ -144,28 +144,32 @@ class TK_EVF_WC {
         }
 
         public function create_temp_user( $user_id ) {
-                if ( !current_user_can( 'manage_options' ) ) {
-                        if ( !$user_id ) {
-                                return;
-                        }
-                        // avoiding  a 'call to undefined function' error while using wp_delete_user
-                        require_once( ABSPATH . 'wp-admin/includes/user.php' );
-                        global $wpdb;
-                        $data = get_userdata( $user_id );
-                        $to   = $data->user_email;
-                        $un   = $data->user_login;
-                        $pw   = $data->user_pass;
-                        $dt   = current_time( 'mysql' );
+	        
+	        if( ! current_user_can( 'manage_options' ) ) {
 
-                        $hash = $this->generate_hash( $to, $un );
-                        $this->send_verification( $to, $un, $hash );
-
-                        $sql = $wpdb->prepare( "INSERT INTO `" . self::get_table_name() . "` (`user_login`, `user_pass`, `user_email`, `confirm_code`, `date_registered`) VALUES(%s, %s, %s, %s, %s)", array( $un, $pw, $to, $hash, $dt ) );
-                        $wpdb->query( $sql );
-
-                        //removing user from wordpress
-                        wp_delete_user( $user_id );
-                }
+	            if ( !$user_id ) {
+	                    return;
+	            }
+	            // avoiding  a 'call to undefined function' error while using wp_delete_user
+	            require_once( ABSPATH . 'wp-admin/includes/user.php' );
+	            global $wpdb;
+	            $data = get_userdata( $user_id );
+	            $to   = $data->user_email;
+	            $un   = $data->user_login;
+	            $pw   = $data->user_pass;
+	            $dt   = current_time( 'mysql' );
+	
+	            $hash = $this->generate_hash( $to, $un );
+	            $this->send_verification( $to, $un, $hash );
+	
+	            $sql = $wpdb->prepare( "INSERT INTO `" . self::get_table_name() . "` (`user_login`, `user_pass`, `user_email`, `confirm_code`, `date_registered`) VALUES(%s, %s, %s, %s, %s)", array( $un, $pw, $to, $hash, $dt ) );
+	            $wpdb->query( $sql );
+	
+	            //removing user from wordpress
+	            wp_delete_user( $user_id );
+	            
+			}
+                
         }
 
         public function generate_hash( $to, $un ) {
@@ -189,23 +193,40 @@ class TK_EVF_WC {
         /* Verification Email */
 
         public function send_verification( $to, $un, $hash ) {
-                if ( session_status() === PHP_SESSION_NONE ) {
-                        session_start();
-                }
-                $page_id                                 = get_option( 'woocommerce_account_validation_page_id' );
-                $activation_post                         = get_post( $page_id );
-                $activation_url                          = $activation_post->post_name;
-                $blogname                                = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
-                $subject                                 = sprintf( __( 'Activate your %s account', 'email-verification-for-woocommerce' ), $blogname );
-                $message                                 = sprintf( __( 'Hello %s,<br/><br/>'
-                                . 'To activate your account and access the feature you were trying to view, '
-                                . 'copy and paste the following link into your web browser:'
-                                . '<br/><a href="%s">%s</a><br/><br/>'
-                                . 'Thank you for registering with us.'
-                                . '<br/><br/>Yours sincerely,<br/>%s', 'email-verification-for-woocommerce' ), $un, home_url( '/' ) . $activation_url . '?passkey=' . $hash, home_url( '/' ) . $activation_url . '?passkey=' . $hash, $blogname );
-                wc_mail( $to, $subject, $message );
-                $_SESSION[ 'email_send_for_activation' ] = 'done';
-                return;
+	        
+            if ( session_status() === PHP_SESSION_NONE ) {
+                    session_start();
+            }
+            
+            $page_id                                 = get_option( 'woocommerce_account_validation_page_id' );
+            $activation_post                         = get_post( $page_id );
+            $activation_url                          = $activation_post->post_name;
+            $blogname                                = wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES );
+            $subject                                 = sprintf( __( 'Activate your %s account', 'email-verification-for-woocommerce' ), $blogname );
+            
+            ob_start();
+            
+            wc_get_template( 'emails/email-header.php', array( 'email_heading' => $subject ) );
+            
+            echo sprintf( __( 'Hello %s,<br/><br/>'
+                            . 'To activate your account and access the feature you were trying to view, '
+                            . 'copy and paste the following link into your web browser:'
+                            . '<br/><a href="%s">%s</a><br/><br/>'
+                            . 'Thank you for registering with us.'
+                            . '<br/><br/>Yours sincerely,<br/>%s', 'email-verification-for-woocommerce' ), $un, home_url( '/' ) . $activation_url . '?passkey=' . $hash, home_url( '/' ) . $activation_url . '?passkey=' . $hash, $blogname );
+                            
+            wc_get_template( 'emails/email-footer.php' );
+                            
+			$message = ob_get_contents();
+			
+			ob_end_clean();
+                            
+            wc_mail( $to, $subject, apply_filters( 'woocommerce_mail_content', $message ) );
+            
+            $_SESSION[ 'email_send_for_activation' ] = 'done';
+            
+            return;
+            
         }
 
         public static function activate() {
