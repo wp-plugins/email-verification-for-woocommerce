@@ -11,14 +11,15 @@ class TK_EVF_WC {
         public $customer_id;
 
         public function __construct() {
+	        	add_action( 'parse_request', array($this, 'maybe_process_shortcode') );
                 add_shortcode( 'email-verification-for-woocommerce', array( $this, 'add_shortcode' ) );
                 add_action( 'user_register', array( $this, 'create_temp_user' ) );
                 add_action( 'woocommerce_checkout_init', array( $this, 'before_checkout_process' ) );
                 add_action( 'init', array( $this, 'load_textdomain' ) );
                 // add scheduler action
                 add_action( 'purge_unvalidated_accounts_cron', array( $this, 'purge_unvalidated_accounts' ) );
-                add_action( 'woocommerce_before_my_account', array( $this, 'add_activation_message_to_my_account' ) );
                 add_filter( 'woocommerce_my_account_message', array( $this, 'add_text_to_my_account' ) );
+                add_action( 'woocommerce_checkout_order_processed', array($this, 'remove_temp_user') );
         }
 
         public static function get_table_name() {
@@ -47,8 +48,6 @@ class TK_EVF_WC {
                 if ( isset( $_SESSION[ 'email_send_for_activation' ] ) && $_SESSION[ 'email_send_for_activation' ] === 'done' ) {
                         wc_add_notice( __( 'A confirmation link has been sent to your email address. Please follow the instructions in the email to activate your account.', 'email-verification-for-woocommerce', 'success' ) );
                         unset( $_SESSION[ 'email_send_for_activation' ] );
-                } else if ( isset( $_SESSION[ 'email_send_for_activation' ] ) && $_SESSION[ 'email_send_for_activation' ] === 'verified' ) {
-                        $this->add_activation_message_to_my_account();
                 } else if ( !is_user_logged_in() && $guest_checkout === 'no' ) {
                         if ( !isset( $_GET[ 'action' ] ) || filter_input( INPUT_GET, 'action', FILTER_SANITIZE_STRING ) === '' ) {
                                 wc_add_notice( __( 'You will need an account with a validated emailaddress before you can proceed the checkout. <br /> Please login or create an account to checkout.', 'email-verification-for-woocommerce', 'notice' ) );
@@ -56,19 +55,18 @@ class TK_EVF_WC {
                 }
                 return;
         }
-
-        public function add_activation_message_to_my_account() {
-                if ( isset( $_SESSION[ 'email_send_for_activation' ] ) && $_SESSION[ 'email_send_for_activation' ] === 'verified' ) {
-                        $page_id = wc_get_page_id( 'myaccount' );
-                        wc_add_notice( __( 'Account activation successful.', 'email-verification-for-woocommerce' ), 'success' );
-                        unset( $_SESSION[ 'email_send_for_activation' ] ); //break loop
-                        wp_redirect( home_url() . '?page_id=' . $page_id );
-                        exit;
-                }
-        }
-
         public function load_textdomain() {
                 load_plugin_textdomain( 'email-verification-for-woocommerce', false, dirname( dirname( plugin_basename( __FILE__ ) ) ) . '/language/' );
+        }
+        
+        public function maybe_process_shortcode($query) {
+	        
+	        if( ! empty( $query->query_vars['pagename'] ) && $query->query_vars['pagename'] == 'account-validation' ) {
+		        
+		        $this->add_shortcode();
+		        
+	        }
+	        
         }
 
         public function add_shortcode() {
@@ -84,23 +82,22 @@ class TK_EVF_WC {
                                 //remove filter
                                 remove_filter( 'user_register', array( $this, 'create_temp_user' ) );
 
-                                $create_user = $this->create_new_customer( $result[ 'user_email' ], $result[ 'user_login' ], $result[ 'user_pass' ], $result[ 'date_registered' ] );
+                                $create_user = $this->create_new_customer( $result[ 'user_email' ], $result[ 'user_login' ], $result[ 'user_pass' ], $result[ 'date_registered' ], $result['role'] );
 
                                 if ( is_int( $create_user ) ) {
-                                        $this->remove_temp_user( $result[ 'user_id' ] );
-                                        if ( WC()->cart->get_cart_contents_count() > 0 ) {
+	                                	wc_set_customer_auth_cookie( $create_user );
+	                                	$cart_session = get_transient( 'wc_temp_user_' . $result[ 'user_id' ] . '_persistent_cart' );  	
+                                        if ( $cart_session ) {
+	                                        	update_user_meta( $create_user, '_woocommerce_persistent_cart', $cart_session );
                                                 $page_id = wc_get_page_id( 'checkout' );
-                                                wc_set_customer_auth_cookie( $create_user );
                                                 wc_add_notice( __( 'Account activation successful. You can checkout now.', 'email-verification-for-woocommerce' ), 'success' );
-                                                wp_redirect( home_url() . '?page_id=' . $page_id );
-                                                exit;
+                                                
                                         } else {
                                                 $page_id = wc_get_page_id( 'myaccount' );
-                                                wc_set_customer_auth_cookie( $create_user );
-                                                $_SESSION[ 'email_send_for_activation' ] = 'verified';
-                                                wp_redirect( home_url() . '?page_id=' . $page_id );
-                                                exit;
+                                                wc_add_notice( __( 'Account activation successful.', 'email-verification-for-woocommerce' ), 'success' );
                                         }
+                                        wp_redirect( home_url() . '?page_id=' . $page_id );
+                                        exit;
                                 } else {
                                         wp_redirect( home_url() );
                                         exit;
@@ -109,34 +106,37 @@ class TK_EVF_WC {
                                 wp_redirect( home_url() );
                                 exit;
                         }
+                } else {
+	                wp_redirect( home_url() );
+                    exit;
                 }
         }
 
-        public function create_new_customer( $email, $username, $password, $date_registered ) {                
-                $check_pw_setting = get_option( 'woocommerce_registration_generate_password' );                
-                if ( ! username_exists( $username ) ) {
-                        if ( $check_pw_setting === 'yes' ) {
-                                $password_generated = true;
-                                $password = wp_generate_password();
-                        } else {
-                                $password_generated = false;
-                        }
-                        
-                        $new_customer_data = apply_filters( 'woocommerce_new_customer_data', array(
-                                'user_login'            => $username,
-                                'user_pass'             => $password,
-                                'user_email'            => $email,
-                                'role'                  => 'customer',
-                                'user_registered'       => $date_registered
-                                ) );
-                        
-                        $uid = wp_insert_user( $new_customer_data );
-                        
-                        do_action( 'woocommerce_created_customer', $uid, $new_customer_data, $password_generated );                        
-                        return $uid;
-                } else {
-                        return false;
-                }
+        public function create_new_customer( $email, $username, $password, $date_registered, $role = 'customer' ) {                
+            $check_pw_setting = get_option( 'woocommerce_registration_generate_password' );    
+            $uid = username_exists( $username );            
+            if ( ! $uid ) {
+                    if ( $check_pw_setting === 'yes' ) {
+                            $password_generated = true;
+                            $password = wp_generate_password();
+                    } else {
+                            $password_generated = false;
+                    }
+                    
+                    $new_customer_data = apply_filters( 'woocommerce_new_customer_data', array(
+                            'user_login'            => $username,
+                            'user_pass'             => $password,
+                            'user_email'            => $email,
+                            'role'                  => $role,
+                            'user_registered'       => $date_registered
+                            ) );
+                    
+                    $uid = wp_insert_user( $new_customer_data );
+                    
+                    do_action( 'woocommerce_created_customer', $uid, $new_customer_data, $password_generated );                        
+                    return $uid;
+            }
+            return $uid;
         }
 
         public function set_customer_id( $user_id ) {
@@ -144,32 +144,35 @@ class TK_EVF_WC {
         }
 
         public function create_temp_user( $user_id ) {
-	        
-	        if( ! current_user_can( 'manage_options' ) ) {
+            
+          if ( !current_user_can( 'manage_options' ) ) {
+                    if ( !$user_id ) {
+                            return;
+                    }
+                    // avoiding  a 'call to undefined function' error while using wp_delete_user
+                    require_once( ABSPATH . 'wp-admin/includes/user.php' );
+                    global $wpdb;
+                    $data = get_userdata( $user_id );
+                    $to   = $data->user_email;
+                    $un   = $data->user_login;
+                    $pw   = $data->user_pass;
+                    $role = reset($data->roles);
+                    $dt   = current_time( 'mysql' );
 
-	            if ( !$user_id ) {
-	                    return;
-	            }
-	            // avoiding  a 'call to undefined function' error while using wp_delete_user
-	            require_once( ABSPATH . 'wp-admin/includes/user.php' );
-	            global $wpdb;
-	            $data = get_userdata( $user_id );
-	            $to   = $data->user_email;
-	            $un   = $data->user_login;
-	            $pw   = $data->user_pass;
-	            $dt   = current_time( 'mysql' );
-	
-	            $hash = $this->generate_hash( $to, $un );
-	            $this->send_verification( $to, $un, $hash );
-	
-	            $sql = $wpdb->prepare( "INSERT INTO `" . self::get_table_name() . "` (`user_login`, `user_pass`, `user_email`, `confirm_code`, `date_registered`) VALUES(%s, %s, %s, %s, %s)", array( $un, $pw, $to, $hash, $dt ) );
-	            $wpdb->query( $sql );
-	
-	            //removing user from wordpress
-	            wp_delete_user( $user_id );
-	            
-			}
-                
+                    $hash = $this->generate_hash( $to, $un );
+                    $this->send_verification( $to, $un, $hash );
+
+                    $sql = $wpdb->prepare( "INSERT INTO `" . self::get_table_name() . "` (`user_login`, `user_pass`, `user_email`, `confirm_code`, `role`, `date_registered`) VALUES(%s, %s, %s, %s, %s, %s)", array( $un, $pw, $to, $hash, $role, $dt ) );
+                    $wpdb->query( $sql );
+
+                    set_transient( 'wc_temp_user_' . $wpdb->insert_id . '_persistent_cart', array(
+          'cart' => WC()->cart->get_cart_for_session(),
+        ), 60*60*24*7 );
+
+                    //removing user from wordpress
+                    wp_delete_user( $user_id );
+            }
+          
         }
 
         public function generate_hash( $to, $un ) {
@@ -181,19 +184,22 @@ class TK_EVF_WC {
                 return hash( 'sha256', $to . $generated . $un );
         }
 
-        public function remove_temp_user( $user_id ) {
+        public function remove_temp_user( $order_id ) {
                 global $wpdb;
+                $order = wc_get_order( $order_id );
+                $user_id = $order->get_user_id();
                 $table = self::get_table_name();
                 $sSql  = $wpdb->prepare( "DELETE FROM `{$table}`
                     WHERE `user_id` = %d
                     LIMIT 1", $user_id );
+                delete_transient( 'wc_temp_user_' . $user_id . '_persistent_cart' );
                 $wpdb->query( $sSql );
         }
 
         /* Verification Email */
 
         public function send_verification( $to, $un, $hash ) {
-	        
+            
             if ( session_status() === PHP_SESSION_NONE ) {
                     session_start();
             }
@@ -217,16 +223,15 @@ class TK_EVF_WC {
                             
             wc_get_template( 'emails/email-footer.php' );
                             
-			$message = ob_get_contents();
+			      $message = ob_get_contents();
 			
-			ob_end_clean();
+			      ob_end_clean();
                             
             wc_mail( $to, $subject, apply_filters( 'woocommerce_mail_content', $message ) );
             
             $_SESSION[ 'email_send_for_activation' ] = 'done';
             
             return;
-            
         }
 
         public static function activate() {
@@ -256,6 +261,7 @@ class TK_EVF_WC {
                         $sSql .= "`user_pass` TEXT NOT NULL,";
                         $sSql .= "`user_email` TEXT NOT NULL,";
                         $sSql .= "`confirm_code` TEXT NOT NULL,";
+                        $sSql .= "`role` TEXT NOT NULL,";
                         $sSql .= "`date_registered` datetime NOT NULL DEFAULT '0000-00-00 00:00:00',";
                         $sSql .= "PRIMARY KEY (`user_id`)";
                         $sSql .= ")";
