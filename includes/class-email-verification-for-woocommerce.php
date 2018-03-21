@@ -50,7 +50,7 @@ class TK_EVF_WC {
                         unset( $_SESSION[ 'email_send_for_activation' ] );
                 } else if ( !is_user_logged_in() && $guest_checkout === 'no' ) {
                         if ( !isset( $_GET[ 'action' ] ) || filter_input( INPUT_GET, 'action', FILTER_SANITIZE_STRING ) === '' ) {
-                                wc_add_notice( __( 'You will need an account with a validated emailaddress before you can proceed the checkout. <br /> Please login or create an account to checkout.', 'email-verification-for-woocommerce', 'notice' ) );
+                                wc_add_notice( __( 'You will need an account with a validated email address before you can proceed the checkout. <br /> Please login or create an account to checkout.', 'email-verification-for-woocommerce', 'notice' ) );
                         }
                 }
                 return;
@@ -216,10 +216,10 @@ class TK_EVF_WC {
             
             echo sprintf( __( 'Hello %s,<br/><br/>'
                             . 'To activate your account and access the feature you were trying to view, '
-                            . 'copy and paste the following link into your web browser:'
-                            . '<br/><a href="%s">%s</a><br/><br/>'
+                            . 'click on the link below:'
+                            . '<br/><a href="%s" class="button">Activate account</a><br/><br/>'
                             . 'Thank you for registering with us.'
-                            . '<br/><br/>Yours sincerely,<br/>%s', 'email-verification-for-woocommerce' ), $un, home_url( '/' ) . $activation_url . '?passkey=' . $hash, home_url( '/' ) . $activation_url . '?passkey=' . $hash, $blogname );
+                            . '<br/><br/>Yours sincerely,<br/>%s', 'email-verification-for-woocommerce' ), $un, home_url( '/' ) . $activation_url . '?passkey=' . $hash, $blogname );
                             
             wc_get_template( 'emails/email-footer.php' );
                             
