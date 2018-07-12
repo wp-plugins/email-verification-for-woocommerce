@@ -18,7 +18,7 @@ class TK_EVF_WC {
                 add_action( 'init', array( $this, 'load_textdomain' ) );
                 // add scheduler action
                 add_action( 'purge_unvalidated_accounts_cron', array( $this, 'purge_unvalidated_accounts' ) );
-                add_filter( 'woocommerce_my_account_message', array( $this, 'add_text_to_my_account' ) );
+                add_filter( 'wp', array( $this, 'add_text_to_my_account' ) );
                 add_action( 'woocommerce_checkout_order_processed', array($this, 'remove_temp_user') );
         }
 
@@ -30,7 +30,7 @@ class TK_EVF_WC {
         public function before_checkout_process() {
                 // check if user is logged in and if guest checkout is enabled
                 // this only works if guest checkout is disabled,
-                $guest_checkout = get_option( 'woocommerce_enable_guest_checkout' );
+                $guest_checkout = get_option( 'woocommerce_enable_signup_and_login_from_checkout' );
                 if ( !is_user_logged_in() && $guest_checkout === 'no' ) {
                         $page_id = wc_get_page_id( 'myaccount' );
                         wp_redirect( home_url() . '?page_id=' . $page_id );
@@ -41,17 +41,12 @@ class TK_EVF_WC {
         }
 
         public function add_text_to_my_account() {
-                // check if user is logged in and if guest checkout is enabled
-                // this only works if guest checkout is disabled,
-                $guest_checkout = get_option( 'woocommerce_enable_guest_checkout' );
-                //do messages        
-                if ( isset( $_SESSION[ 'email_send_for_activation' ] ) && $_SESSION[ 'email_send_for_activation' ] === 'done' ) {
+
+                //do messages   
+
+                if ( ! is_user_logged_in() && is_page(wc_get_page_id( 'myaccount' )) && ! empty( $_COOKIE['email_send_for_activation'] ) && $_COOKIE['email_send_for_activation'] === 'done' ) {
                         wc_add_notice( __( 'A confirmation link has been sent to your email address. Please follow the instructions in the email to activate your account.', 'email-verification-for-woocommerce', 'success' ) );
-                        unset( $_SESSION[ 'email_send_for_activation' ] );
-                } else if ( !is_user_logged_in() && $guest_checkout === 'no' ) {
-                        if ( !isset( $_GET[ 'action' ] ) || filter_input( INPUT_GET, 'action', FILTER_SANITIZE_STRING ) === '' ) {
-                                wc_add_notice( __( 'You will need an account with a validated email address before you can proceed the checkout. <br /> Please login or create an account to checkout.', 'email-verification-for-woocommerce', 'notice' ) );
-                        }
+                        setcookie("email_send_for_activation", "", time()-3600, '/');
                 }
                 return;
         }
@@ -86,17 +81,18 @@ class TK_EVF_WC {
 
                                 if ( is_int( $create_user ) ) {
 	                                	wc_set_customer_auth_cookie( $create_user );
+	                                	do_action( 'woocommerce_set_cart_cookies',  true );
 	                                	$cart_session = get_transient( 'wc_temp_user_' . $result[ 'user_id' ] . '_persistent_cart' );  	
                                         if ( $cart_session ) {
 	                                        	update_user_meta( $create_user, '_woocommerce_persistent_cart', $cart_session );
                                                 $page_id = wc_get_page_id( 'checkout' );
-                                                wc_add_notice( __( 'Account activation successful. You can checkout now.', 'email-verification-for-woocommerce' ), 'success' );
+                                                wc_add_notice( __( 'Account activation successful. You can now continue.', 'email-verification-for-woocommerce' ), 'success' );
                                                 
                                         } else {
                                                 $page_id = wc_get_page_id( 'myaccount' );
                                                 wc_add_notice( __( 'Account activation successful.', 'email-verification-for-woocommerce' ), 'success' );
                                         }
-                                        wp_redirect( home_url() . '?page_id=' . $page_id );
+                                        wp_redirect( apply_filters( 'woocommerce_email_verification_login_redirect', home_url() . '?page_id=' . $page_id, $create_user, $cart_session )  );
                                         exit;
                                 } else {
                                         wp_redirect( home_url() );
@@ -200,10 +196,6 @@ class TK_EVF_WC {
 
         public function send_verification( $to, $un, $hash ) {
             
-            if ( session_status() === PHP_SESSION_NONE ) {
-                    session_start();
-            }
-            
             $page_id                                 = get_option( 'woocommerce_account_validation_page_id' );
             $activation_post                         = get_post( $page_id );
             $activation_url                          = $activation_post->post_name;
@@ -214,14 +206,13 @@ class TK_EVF_WC {
             
             wc_get_template( 'emails/email-header.php', array( 'email_heading' => $subject ) );
             
-            echo sprintf( __( 'Hello %s,<br/><br/>'
-                            . 'To activate your account and access the feature you were trying to view, '
-                            . 'click on the link below:'
-                            . '<br/><a href="%s" class="button">Activate account</a><br/><br/>'
-                            . 'Thank you for registering with us.'
-                            . '<br/><br/>Yours sincerely,<br/>%s', 'email-verification-for-woocommerce' ), $un, home_url( '/' ) . $activation_url . '?passkey=' . $hash, $blogname );
+            echo sprintf( __( '<p>Hello %s,</p>'
+                            . '<p>To activate your account and access the feature you were trying to view, click on the link below:</p>'
+                            . '<ul class="inline-list text-center"><li><a href="%s" class="button">Activate account</a></li></ul>'
+                            . '<p>Thank you for registering with us.</p>'
+                            . '<p>Thanks, %s</p>', 'email-verification-for-woocommerce' ), $un, home_url( '/' ) . $activation_url . '?passkey=' . $hash, $blogname );
                             
-            wc_get_template( 'emails/email-footer.php' );
+            wc_get_template( 'emails/email-footer.php', array( 'site_title' => esc_html( get_bloginfo( 'name', 'display' ) ) ) );
                             
 			      $message = ob_get_contents();
 			
@@ -229,7 +220,7 @@ class TK_EVF_WC {
                             
             wc_mail( $to, $subject, apply_filters( 'woocommerce_mail_content', $message ) );
             
-            $_SESSION[ 'email_send_for_activation' ] = 'done';
+            setcookie( 'email_send_for_activation', 'done', time()+20, '/' );
             
             return;
         }
