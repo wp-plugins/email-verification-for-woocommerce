@@ -117,7 +117,7 @@ class TK_EVF_WC {
                 
             	do_action( 'woocommerce_set_cart_cookies',  true );
             	
-            	$cart_session = get_user_meta( $user_id, '_woocommerce_persistent_cart', true );	
+            	$cart_session = get_user_meta( $user_id, '_woocommerce_persistent_cart_' . get_current_blog_id(), true );	
             	
                 if ( $cart_session ) {
                     
